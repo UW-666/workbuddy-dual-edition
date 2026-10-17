@@ -1,0 +1,8 @@
+# 本地产物 / 调试痕迹，一律不入库
+_sanitize.py
+*.bak
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
