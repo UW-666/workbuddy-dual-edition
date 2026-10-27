@@ -515,3 +515,88 @@ Register-ScheduledTask -TaskName "WorkBuddy-Staging-Guard" -Action $act -Trigger
 - **macOS / Linux 的路径与权限手段未实测**，按 Electron 通用规律给出；请以本地日志打印的路径为准（§3.3 第一步）。
 - 若某版本把自动更新改成「整包替换」且不走 staging，封锁会失效；此时以「关开关 + 不同目录」为主，必要时降级为 VMware/Hyper-V/独立用户账户隔离。
 - 官方**从未承诺**同机双开；本文是把两版**本已独立的身份**用起来，并堵住会破坏它的自动更新。产品若变更行为，请以本文 §1 探测 + §4 验证重新判定。
+
+---
+
+## 9. 重装整包治本路线（2026-10-27 实战新增）
+
+### 9.1 什么时候走重装路线
+
+做完 §3 四步（目录隔离 + 关强装 + 阻断下载 + 加固缓存）后，若仍出现以下「混合构建」症状，说明安装目录里叠着另一版的残留产物（混合 asar / 旧 seed / 旧 manifest），手工补丁**治不了**：
+
+- 套餐/额度面板一直「获取中」转圈，且抓包显示**零网络请求**（渲染层拿不到 account 对象，与网络、鉴权无关）
+- 积分额度刷新但数值永远出不来
+- 个人资料网页跳错域名，改 `links.*` 也无效（`isOversea` 硬编码二选一是总根源）
+- 两个版本功能「你中有我」（如国内版出现国际版 UI、反之亦然）
+
+**判断口诀：改了配置还复发 + 现象出在渲染层 + 零请求 = 结构性混合，重装整包。**
+
+### 9.2 重装前确认（缺一不可）
+
+1. **确认当前版本就是官方最新**：抓更新接口返回 204（无更新）即当前为最新，否则等官方发整包
+2. **备份**：把 `product.json`、`cn-product-config.json`、`launch-*.vbs`、桌面 `.lnk` 复制到独立备份目录
+3. **完全退出**要重装的客户端（任务管理器确认无残留进程）
+4. **整包从官网下载**，不要用增量包/seed
+
+### 9.3 重装操作
+
+- 运行整包安装器，**路径保持该版默认安装目录**（不要装进另一版的目录）
+- 装完**先不登录**，先跑验证（§9.4）
+- 更新封锁（§3.3 的 ACL）装完后会自动恢复生效（守卫计划任务登录时重打）
+
+### 9.4 装后验证清单（用 `scripts/verify_install.py`）
+
+```bash
+python scripts/verify_install.py --install-dir "E:\Workbuddy" --edition cn \
+  --auth-dir "<共享auth目录>"
+python scripts/verify_install.py --install-dir "E:\WorkBuddy国外版" --edition intl
+```
+
+脚本逐项检查：asar 内版本号、install-manifest（appVersion/fileCount/generatedAt）、product.json（authentication.id、links 域名、是否混入 isOversea 字段）、cn-product-config（isOversea/startupForceAutoUpdate）、双版启动 vbs、auth 会话文件。
+
+**手工核对要点（脚本覆盖不到的）：**
+
+| 检查项 | 通过标准 |
+|---|---|
+| `resources/install-manifest.json` | `appVersion` 与 asar 版本一致；是**本版**官方清单（国际版残留清单=损坏弹窗根因） |
+| asar 内部文件 | 无另一版的 seed 叠加痕迹（5.8.4 seed 曾以 1931 文件叠加在 5.8.3 的 1716 文件上） |
+| `cn-product-config.json` | 干净整包**原生自带** `isOversea:false` + `updates.startupForceAutoUpdate:false`，此前手工补丁全部不再需要 |
+| 启动验证 | 无「安装文件损坏」弹窗、登录态保持、套餐面板正常加载、个人管理网页跳正确域名 |
+
+### 9.5 重装后的重要结论
+
+**干净整包 = 自带正确配置。** 手工补丁（isOversea、links、startupForceAutoUpdate）只在「混合目录」上才需要。重装后如果所有验证通过，不要画蛇添足再打补丁——先验证原生值，原生值对了就不动。
+
+---
+
+## 10. 衍生故障排查（重装/隔离后常见）
+
+### 10.1 桌面快捷方式图标空白
+
+**症状**：应用能正常启动（vbs 启动脚本正确），但桌面图标显示空白/默认图标。
+
+**根因**：快捷方式的 `IconLocation` 指向不存在的文件。典型场景：重装/移动目录后旧路径失效；或双版启动脚本与图标路径不一致。
+
+**修复**：`scripts/fix_lnk_icon.py`（依赖 `pip install comtypes`）：
+
+```bash
+python scripts/fix_lnk_icon.py "D:\...\桌面\WorkBuddy AI.lnk" "E:\WorkBuddy国外版\WorkBuddyAI.exe"
+```
+
+脚本只改 IconLocation，其余字段（目标参数、工作目录、描述）不动；自动备份原 .lnk；改完 `ie4uinit.exe -show` 刷缓存，或让用户 F5 / 重启 explorer。
+
+**注意**：PowerShell 的 `WScript.Shell` COM 实例化可能被安全策略拦截，`reg.exe` 也常在黑名单——用 Python comtypes 通道最稳（手工定义 IShellLinkW/IPersistFile vtable，不依赖 pywin32）。
+
+### 10.2 旧安装位置空壳 + defaultWorkspacePath 残留
+
+**症状**：某版旧安装位置只剩空的 `workspace` 子目录，但该版 `app-config.json` 的 `defaultWorkspacePath` 仍指向它。删除空壳前**必须**先改配置，否则客户端下次新会话会重建该目录或报路径错误。
+
+**流程**：
+1. 完全退出对应客户端（否则退出时内存值覆盖回写）
+2. 改 `<数据目录>\app\app-config.json` 的 `defaultWorkspacePath` → 当前实际工作区（改前备份）
+3. 空壳目录走回收站删除（受限环境下可用 ctypes 直调 `SHFileOperationW` + `FOF_ALLOWUNDO`；`send2trash` 在部分沙箱环境会报 com_error）
+
+### 10.3 脚本编码坑（Windows vbs/lnk 处理通用）
+
+- 为绕过沙箱写的 `.vbs` 可能是 **UTF-16LE** 编码——读取时先探测 BOM/零字节，按 utf-16-le 解码；按 utf-8 读会得到乱码误判
+- `.lnk` 内字符串为 UTF-16LE 且无 NUL 结尾，用 `(?:[\x20-\x7e]\x00){4,}` 正则提取；bytes 模式正则里不要写 `\u` 转义（`bad escape \u` 报错），中文路径单独按其 UTF-16LE 字节串查找

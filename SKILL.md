@@ -1,6 +1,6 @@
 ---
 name: workbuddy-dual-edition
-description: 处理腾讯 WorkBuddy 国内版(workbuddy.cn)与国际版(workbuddy.ai)在同一台电脑上的共存问题。触发词：双开、同时开两个、开第二个没反应、装国内版却变国际版、只能登录国际版、重启后被覆盖、卸载重装还复发、两版互相覆盖、国际版登不上、国内版登不上、WorkBuddy 两版冲突、WorkBuddyAI.exe 突然出现。
+description: 处理腾讯 WorkBuddy 国内版(workbuddy.cn)与国际版(workbuddy.ai)在同一台电脑上的共存问题。触发词：双开、同时开两个、开第二个没反应、装国内版却变国际版、只能登录国际版、重启后被覆盖、卸载重装还复发、两版互相覆盖、国际版登不上、国内版登不上、WorkBuddy 两版冲突、WorkBuddyAI.exe 突然出现、安装文件损坏或缺失、每次启动要重新登录、套餐一直转圈获取中、积分额度刷不出来、个人管理网页打不开、桌面图标空白、快捷方式图标丢失。
 ---
 
 # WorkBuddy 国内版 / 国际版 同机共存
@@ -62,6 +62,8 @@ description: 处理腾讯 WorkBuddy 国内版(workbuddy.cn)与国际版(workbudd
 4. **§3.4 加固缓存**：若日志仍 `source=product-base` 且值 true，同改 `<数据目录>/cache/acc-product-config-v3.json`
 
 完成后**必须按 playbook §4 逐项验证**，尤其「重启电脑后再验一次」。
+
+**第 5 步（混合构建症状专用）**：若做完四步仍出现套餐面板转圈（零网络请求）、积分刷不出、个人页跳错域名且补丁无效——这是混合构建结构性问题，走 playbook §9「重装整包治本路线」：官网整包覆盖安装 → 用 `scripts/verify_install.py` 跑装后验证 → 干净整包原生自带正确配置，**不要再画蛇添足打补丁**。衍生故障（桌面图标空白、旧路径残留）见 playbook §10，脚本在 `scripts/`。
 
 ## 3. 确认闸（破坏性操作，先问人再做）
 

@@ -24,8 +24,18 @@ references/
   full-playbook.md                # 完整方案：探测/根因/四步处置/验证/FAQ/回滚
   log-cheatsheet.md               # 日志关键字速查 + source 五源对照表
   platform-notes.md               # 各平台实测状态与边界（谁实测过、谁没有）
-references/full-playbook.md §6     # 可执行脚本（一键补丁、守卫任务）
+scripts/
+  verify_install.py               # 重装/升级后一键验证（asar版本/manifest/product.json/配置/vbs/auth）
+  fix_lnk_icon.py                 # 桌面快捷方式图标空白修复（comtypes 改 IconLocation）
 ```
+
+## 2026-10-27 更新（v1.1）
+
+- **新增 playbook §9「重装整包治本路线」**：四步方案治不了的混合构建症状（套餐面板转圈且零请求、积分刷不出、改 links 仍跳错域名）→ 官网整包覆盖安装 + 装后验证清单
+- **新增 playbook §10「衍生故障排查」**：桌面图标空白（IconLocation 失效）、旧安装位置空壳 + defaultWorkspacePath 残留、vbs/lnk 的 UTF-16LE 编码坑
+- **新增 `scripts/verify_install.py`**：重装后逐项验证（11 项检查，两版实测 11/11、7/7 通过）
+- **新增 `scripts/fix_lnk_icon.py`**：不改目标只改图标，自动备份，兼容受限环境（无 PowerShell COM / reg.exe）
+- 关键结论：**干净整包原生自带正确配置**（isOversea:false、startupForceAutoUpdate:false），混合目录上的手工补丁在重装后不再需要
 
 ## 快速开始
 
