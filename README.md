@@ -2,6 +2,10 @@
 
 Tencent **WorkBuddy 国内版与国际版同机共存**的完整处置方案，同时是一个可直接加载的 Agent Skill。
 
+> **来源与致谢**：本仓库 fork 自 [ZenHG/workbuddy-dual-edition](https://github.com/ZenHG/workbuddy-dual-edition)。
+> 原方案（v1.0：根因分析、四步处置、playbook、日志速查）全部出自原作者 **ZenHG**，见 init commit `2dcd841`。
+> 本 fork 增量（v1.1，2026-10-27）：playbook §9 重装整包治本路线、§10 衍生故障排查、`scripts/` 验证与图标修复脚本，来自一次真实修复实战。
+
 ## 它解决什么
 
 - 装国内版，一启动却变成国际版
